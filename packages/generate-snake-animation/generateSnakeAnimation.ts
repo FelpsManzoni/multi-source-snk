@@ -44,12 +44,78 @@ export const getUserContribution = async (source: Source) => {
   }
 };
 
+/**
+ * Merge contribution cells from multiple sources into a single unified cell list.
+ *
+ * Counts for the same date are summed across all sources. Intensity levels (0-4)
+ * are then recomputed against the new global maximum. Coordinates (x, y) are
+ * regenerated from a normalized calendar window (last ~365 days) so that
+ * each provider's independent x/y offsets cannot misalign the final grid.
+ */
+export const mergeContributionCells = (
+  cellsPerSource: { date: string; count?: number }[][],
+) => {
+  const countsByDate = new Map<string, number>();
+  for (const cells of cellsPerSource) {
+    for (const { date, count = 0 } of cells) {
+      countsByDate.set(date, (countsByDate.get(date) ?? 0) + count);
+    }
+  }
+
+  const max = Math.max(0, ...countsByDate.values());
+  const levelForCount = (count: number): 0 | 1 | 2 | 3 | 4 =>
+    count <= 0 || max === 0
+      ? 0
+      : count >= max
+        ? 4
+        : (Math.ceil((count / max) * 3) as 1 | 2 | 3);
+
+  // Normalize calendar window to last ~365 days starting from a Sunday,
+  // matching the convention already used by the GitLab and Forgejo fetchers.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(today);
+  start.setDate(start.getDate() - 365);
+  start.setDate(start.getDate() - start.getDay()); // rewind to Sunday
+
+  const cells: {
+    x: number;
+    y: number;
+    date: string;
+    count: number;
+    level: 0 | 1 | 2 | 3 | 4;
+  }[] = [];
+  const cursor = new Date(start);
+  let x = 0;
+
+  while (cursor <= today) {
+    const y = cursor.getDay(); // 0 = Sunday
+    const date = cursor.toLocaleDateString("en-CA");
+    const count = countsByDate.get(date) ?? 0;
+    cells.push({ x, y, date, count, level: levelForCount(count) });
+    cursor.setDate(cursor.getDate() + 1);
+    if (y === 6) x++;
+  }
+
+  return cells;
+};
+
 export const generateSnakeAnimation = async (
-  source: Source,
+  source: Source | Source[],
   outputs: (Output | null)[],
 ) => {
-  console.log(`🎣 fetching user contribution from ${source.platform}`);
-  const cells = await getUserContribution(source);
+  const sources = Array.isArray(source) ? source : [source];
+
+  const platformNames = [...new Set(sources.map((s) => s.platform))].join(
+    ", ",
+  );
+  console.log(`🎣 fetching user contribution from ${platformNames}`);
+
+  const allCells = await Promise.all(sources.map(getUserContribution));
+  const cells =
+    allCells.length === 1 ? allCells[0] : mergeContributionCells(allCells);
+
   const grid = cellsToGrid(cells);
   const snake = snake4;
 
