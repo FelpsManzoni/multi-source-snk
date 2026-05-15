@@ -107,9 +107,7 @@ export const generateSnakeAnimation = async (
 ) => {
   const sources = Array.isArray(source) ? source : [source];
 
-  const platformNames = [...new Set(sources.map((s) => s.platform))].join(
-    ", ",
-  );
+  const platformNames = [...new Set(sources.map((s) => s.platform))].join(", ");
   console.log(`🎣 fetching user contribution from ${platformNames}`);
 
   const allCells = await Promise.all(sources.map(getUserContribution));
