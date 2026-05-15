@@ -5,7 +5,8 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
@@ -22,7 +23,8 @@ jobs:
 
   test-lib:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
@@ -37,7 +39,7 @@ jobs:
 
       - name: run via npx
         run: |
-          npx --yes file:${{ runner.temp }}/snk --github_user=platane --output=snake.svg
+          npx --yes file:${{ runner.temp }}/snk --github_user=${{ github.repository_owner }} --output=snake.svg
           test -f snake.svg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,14 +49,21 @@ jobs:
       - name: install dependencies canvas, gifslice.. in the isolated env parent dir
         run: bun add --cwd ${{ runner.temp }} canvas@3.2.0 gif-encoder-2@1.0.5 gifsicle@5.3.0
 
-      - run: bun ${{ runner.temp }}/snk/cli.js --github_user=platane --output=snake.gif
+      - run: bun ${{ runner.temp }}/snk/cli.js --github_user=${{ github.repository_owner }} --output=snake.gif
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: test -f snake.gif
 
+      - name: run multi-source via cli (gitlab + forgejo)
+        run: |
+          bun ${{ runner.temp }}/snk/cli.js --gitlab_user=dzaporozhets --forgejo_user=codeberg.org/JasterV --output=snake-multi.svg
+          test -f snake-multi.svg
+
   test-action:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -66,7 +75,8 @@ jobs:
         id: generate-snake
         uses: ./
         with:
-          github_user_name: platane
+          github_user_name: ${{ github.repository_owner }}
+          gitlab_user_name: dzaporozhets
           outputs: |
             dist/github-contribution-grid-snake.svg
             dist/github-contribution-grid-snake-dark.svg?palette=github-dark
@@ -87,7 +97,8 @@ jobs:
           test -f dist/github-contribution-grid-snake-dark.gif
           test -f dist/github-contribution-grid-snake-ocean.gif
 
-      - uses: crazy-max/ghaction-github-pages@df5cc2bfa78282ded844b354faee141f06b41865 # v4.2.0
+      - uses: crazy-max/ghaction-github-pages@v4
+        if: github.ref == 'refs/heads/main'
         with:
           target_branch: output
           build_dir: dist
@@ -96,6 +107,8 @@ jobs:
 
   test-action-svg-only:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
@@ -114,7 +127,8 @@ jobs:
         id: generate-snake
         uses: ./svg-only
         with:
-          github_user_name: platane
+          github_user_name: ${{ github.repository_owner }}
+          gitlab_user_name: dzaporozhets
           outputs: |
             dist/github-contribution-grid-snake.svg
             dist/github-contribution-grid-snake-dark.svg?palette=github-dark

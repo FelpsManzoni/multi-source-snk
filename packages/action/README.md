@@ -10,4 +10,9 @@ Because the gif generation requires some native libs, we cannot use a node.js ac
 
 Use a docker action instead, the image is created from the [Dockerfile](../../Dockerfile).
 
-It's published to [dockerhub](https://hub.docker.com/r/platane/snk) which makes for faster build ( compare to building the image when the action runs )
+The image is published via repository workflows to GHCR and then pinned by digest in [action.yml](../../action.yml).
+
+Use one of these workflows to publish/update the image reference:
+
+- [.github/workflows/publish-image.yml](../../.github/workflows/publish-image.yml)
+- [.github/workflows/release.yml](../../.github/workflows/release.yml)
