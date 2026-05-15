@@ -17,6 +17,11 @@ const silent = (handler: () => void | Promise<void>) => async () => {
 it(
   "should generate contribution snake",
   silent(async () => {
+    if (!process.env.GITHUB_TOKEN) {
+      console.warn("Skipping integration test: GITHUB_TOKEN is not set");
+      return;
+    }
+
     const entries = [
       path.join(__dirname, "__snapshots__/out.svg"),
 

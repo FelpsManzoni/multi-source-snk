@@ -8,12 +8,27 @@ runs:
 
 inputs:
   github_user_name:
-    description: "github user name"
-    required: true
+    description: |
+      GitHub user name to read the contribution graph from.
+      Can include a custom host for GitHub Enterprise: "github.mycompany.com/username".
+      At least one of github_user_name, gitlab_user_name, or forgejo_user_name is required.
+    required: false
   github_token:
     description: "github token used to fetch the contribution calendar. Default to the action token if empty."
     required: false
     default: ${{ github.token }}
+  gitlab_user_name:
+    description: |
+      GitLab user name to read the contribution graph from.
+      Can include a custom host for self-hosted instances: "gitlab.mycompany.com/username".
+      Contributions are combined with any other configured source.
+    required: false
+  forgejo_user_name:
+    description: |
+      Forgejo/Codeberg user name to read the contribution graph from.
+      Must include the host: "codeberg.org/username" or "forgejo.mycompany.com/username".
+      Contributions are combined with any other configured source.
+    required: false
   outputs:
     required: false
     description: |
