@@ -67,4 +67,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git add action.yml
           git commit -m "chore: point action.yml to ${{ steps.image.outputs.name }}@${{ steps.docker-build.outputs.digest }}" || echo "No changes to commit"
-          git push
+          git push origin HEAD:${{ github.ref_name }}
