@@ -31,7 +31,9 @@ jobs:
       - name: compute image name
         id: image
         shell: bash
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/multi-source-snk" >> "$GITHUB_OUTPUT"
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${repo_name}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
@@ -65,4 +67,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git add action.yml
           git commit -m "chore: point action.yml to ${{ steps.image.outputs.name }}@${{ steps.docker-build.outputs.digest }}" || echo "No changes to commit"
-          git push
+          git push origin HEAD:${{ github.ref_name }}
