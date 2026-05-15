@@ -49,7 +49,7 @@ export const getUserContribution = async (source: Source) => {
  *
  * Counts for the same date are summed across all sources. Intensity levels (0-4)
  * are then recomputed against the new global maximum. Coordinates (x, y) are
- * regenerated from a normalized calendar window (last ~365 days) so that
+ * regenerated from a normalized calendar window derived from the merged input dates so that
  * each provider's independent x/y offsets cannot misalign the final grid.
  */
 export const mergeContributionCells = (
@@ -70,14 +70,18 @@ export const mergeContributionCells = (
         ? 4
         : (Math.ceil((count / max) * 3) as 1 | 2 | 3);
 
-  // Normalize calendar window to last ~365 days starting from a Sunday,
-  // matching the convention already used by the GitLab and Forgejo fetchers.
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  if (countsByDate.size === 0) return [];
 
-  const start = new Date(today);
-  start.setDate(start.getDate() - 365);
-  start.setDate(start.getDate() - start.getDay()); // rewind to Sunday
+  const parseIsoDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
+  const dates = [...countsByDate.keys()].sort();
+
+  // Build a stable calendar window from the actual data span so tests and
+  // outputs do not depend on the current day.
+  const start = parseIsoDate(dates[0]!);
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay()); // rewind to Sunday
+
+  const end = parseIsoDate(dates[dates.length - 1]!);
+  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay())); // advance to Saturday
 
   const cells: {
     x: number;
@@ -89,12 +93,12 @@ export const mergeContributionCells = (
   const cursor = new Date(start);
   let x = 0;
 
-  while (cursor <= today) {
-    const y = cursor.getDay(); // 0 = Sunday
-    const date = cursor.toLocaleDateString("en-CA");
+  while (cursor <= end) {
+    const y = cursor.getUTCDay(); // 0 = Sunday
+    const date = cursor.toISOString().slice(0, 10);
     const count = countsByDate.get(date) ?? 0;
     cells.push({ x, y, date, count, level: levelForCount(count) });
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
     if (y === 6) x++;
   }
 
