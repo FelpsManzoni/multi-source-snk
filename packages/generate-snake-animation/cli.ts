@@ -11,14 +11,18 @@ import { parseOutputsOption } from "./outputsOptions";
  *   generate-snake-animation --gitlab_user=<[host/]username> --output=<file> [--output=<file> ...]
  *   generate-snake-animation --forgejo_user=<host/username>   --output=<file> [--output=<file> ...]
  *
- * Examples:
+ * Multiple sources can be combined; contributions are summed by date into a unified grid:
+ *   generate-snake-animation --github_user=platane --gitlab_user=platane --output=snake.svg
+ *   generate-snake-animation --github_user=platane --forgejo_user=codeberg.org/platane --output=snake.svg
+ *
+ * Examples (single source):
  *   generate-snake-animation --github_user=platane --output=snake.svg
  *   generate-snake-animation --github_user=github.mycompany.com/platane --output=snake.svg   # GitHub Enterprise
  *   generate-snake-animation --gitlab_user=username --output=snake.svg?palette=gitlab
  *   generate-snake-animation --gitlab_user=gitlab.mycompany.com/username --output=snake.svg  # self-hosted
  *   generate-snake-animation --forgejo_user=codeberg.org/platane --output=snake.svg?palette=codeberg
  *
- * For GitHub, a github token it required ( read from GITHUB_TOKEN env var )
+ * For GitHub, a github token is required ( read from GITHUB_TOKEN env var )
  */
 
 const { values } = parseArgs({
@@ -43,6 +47,9 @@ if (set.length === 0) {
       "  generate-snake-animation --gitlab_user=<[host/]username> --output=<file> [--output=<file> ...]",
       "  generate-snake-animation --forgejo_user=<host/username>   --output=<file> [--output=<file> ...]",
       "",
+      "Multiple sources can be combined:",
+      "  generate-snake-animation --github_user=platane --gitlab_user=platane --output=snake.svg",
+      "",
       "Examples:",
       "  generate-snake-animation --github_user=platane --output=snake.svg",
       "  generate-snake-animation --github_user=github.mycompany.com/platane --output=snake.svg   # GitHub Enterprise",
@@ -53,56 +60,39 @@ if (set.length === 0) {
   );
   process.exit(1);
 }
-if (set.length > 1)
-  throw "--github_user, --gitlab_user, and --forgejo_user are mutually exclusive";
 
-const source: Source = (() => {
-  const parseUser = (uri: string) => {
-    const i = uri.lastIndexOf("/");
-    if (i === -1) return { username: uri };
-    const username = uri.slice(i + 1);
-    let baseUrl = uri.slice(0, i + 1);
-    if (!baseUrl.startsWith("https://")) baseUrl = "https://" + baseUrl;
-    return { username, baseUrl };
-  };
+const parseUser = (uri: string) => {
+  const i = uri.lastIndexOf("/");
+  if (i === -1) return { username: uri };
+  const username = uri.slice(i + 1);
+  let baseUrl = uri.slice(0, i + 1);
+  if (!baseUrl.startsWith("https://")) baseUrl = "https://" + baseUrl;
+  return { username, baseUrl };
+};
 
-  if (github_user) {
-    const { username, baseUrl } = parseUser(github_user);
-    const githubToken = github_token ?? process.env.GITHUB_TOKEN;
-    if (!githubToken) throw "Missing github token";
-    return {
-      platform: "github",
-      githubToken,
-      username,
-      baseUrl,
-    };
-  }
+const sources: Source[] = [];
 
-  if (gitlab_user) {
-    const { username, baseUrl } = parseUser(gitlab_user);
-    return {
-      platform: "gitlab",
-      username,
-      baseUrl,
-    };
-  }
+if (github_user) {
+  const { username, baseUrl } = parseUser(github_user);
+  const githubToken = github_token ?? process.env.GITHUB_TOKEN;
+  if (!githubToken) throw "Missing github token";
+  sources.push({ platform: "github", githubToken, username, baseUrl });
+}
 
-  if (forgejo_user) {
-    const { username, baseUrl } = parseUser(forgejo_user);
-    if (!baseUrl) throw "Missing forgejo uri";
-    return {
-      platform: "forgejo",
-      username,
-      baseUrl,
-    };
-  }
+if (gitlab_user) {
+  const { username, baseUrl } = parseUser(gitlab_user);
+  sources.push({ platform: "gitlab", username, baseUrl });
+}
 
-  throw "Missing user";
-})();
+if (forgejo_user) {
+  const { username, baseUrl } = parseUser(forgejo_user);
+  if (!baseUrl) throw "Missing forgejo host (use host/username format)";
+  sources.push({ platform: "forgejo", username, baseUrl });
+}
 
 const outputs = parseOutputsOption(output ?? []);
 const { generateSnakeAnimation } = await import("./generateSnakeAnimation.js");
-const results = await generateSnakeAnimation(source, outputs);
+const results = await generateSnakeAnimation(sources, outputs);
 
 outputs.forEach((out, i) => {
   const result = results[i];

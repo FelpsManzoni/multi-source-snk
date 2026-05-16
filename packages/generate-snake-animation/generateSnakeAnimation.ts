@@ -44,12 +44,80 @@ export const getUserContribution = async (source: Source) => {
   }
 };
 
+/**
+ * Merge contribution cells from multiple sources into a single unified cell list.
+ *
+ * Counts for the same date are summed across all sources. Intensity levels (0-4)
+ * are then recomputed against the new global maximum. Coordinates (x, y) are
+ * regenerated from a normalized calendar window derived from the merged input dates so that
+ * each provider's independent x/y offsets cannot misalign the final grid.
+ */
+export const mergeContributionCells = (
+  cellsPerSource: { date: string; count?: number }[][],
+) => {
+  const countsByDate = new Map<string, number>();
+  for (const cells of cellsPerSource) {
+    for (const { date, count = 0 } of cells) {
+      countsByDate.set(date, (countsByDate.get(date) ?? 0) + count);
+    }
+  }
+
+  const max = Math.max(0, ...countsByDate.values());
+  const levelForCount = (count: number): 0 | 1 | 2 | 3 | 4 =>
+    count <= 0 || max === 0
+      ? 0
+      : count >= max
+        ? 4
+        : (Math.ceil((count / max) * 3) as 1 | 2 | 3);
+
+  if (countsByDate.size === 0) return [];
+
+  const parseIsoDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
+  const dates = [...countsByDate.keys()].sort();
+
+  // Build a stable calendar window from the actual data span so tests and
+  // outputs do not depend on the current day.
+  const start = parseIsoDate(dates[0]!);
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay()); // rewind to Sunday
+
+  const end = parseIsoDate(dates[dates.length - 1]!);
+  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay())); // advance to Saturday
+
+  const cells: {
+    x: number;
+    y: number;
+    date: string;
+    count: number;
+    level: 0 | 1 | 2 | 3 | 4;
+  }[] = [];
+  const cursor = new Date(start);
+  let x = 0;
+
+  while (cursor <= end) {
+    const y = cursor.getUTCDay(); // 0 = Sunday
+    const date = cursor.toISOString().slice(0, 10);
+    const count = countsByDate.get(date) ?? 0;
+    cells.push({ x, y, date, count, level: levelForCount(count) });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    if (y === 6) x++;
+  }
+
+  return cells;
+};
+
 export const generateSnakeAnimation = async (
-  source: Source,
+  source: Source | Source[],
   outputs: (Output | null)[],
 ) => {
-  console.log(`🎣 fetching user contribution from ${source.platform}`);
-  const cells = await getUserContribution(source);
+  const sources = Array.isArray(source) ? source : [source];
+
+  const platformNames = [...new Set(sources.map((s) => s.platform))].join(", ");
+  console.log(`🎣 fetching user contribution from ${platformNames}`);
+
+  const allCells = await Promise.all(sources.map(getUserContribution));
+  const cells =
+    allCells.length === 1 ? allCells[0] : mergeContributionCells(allCells);
+
   const grid = cellsToGrid(cells);
   const snake = snake4;
 
