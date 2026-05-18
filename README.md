@@ -5,6 +5,7 @@
 [![GitHub marketplace](https://img.shields.io/badge/marketplace-snake-blue?logo=github&style=flat-square)](https://github.com/marketplace/actions/generate-snake-game-from-github-contribution-grid)
 ![type definitions](https://img.shields.io/npm/types/typescript?style=flat-square)
 ![code style](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](./LICENSE)
 
 Generates a snake game from a github user contributions graph
 
@@ -126,3 +127,12 @@ npx generate-snake-animation@3 --forgejo_user codeberg.org/JasterV --output snak
 This project does not accept pull request.
 
 Reporting or fixing issues is appreciated, but change in the API or implementation should be discussed in issue first and is likely not going be greenlighted.
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
+
+Original work © 2020 [Platane](https://github.com/platane/snk)  
+Modifications © 2025 [FelpsManzoni](https://github.com/FelpsManzoni/multi-source-snk)
+
+If you use, copy, or distribute this software, you must retain the above copyright notices and the license text as required by the MIT License.
